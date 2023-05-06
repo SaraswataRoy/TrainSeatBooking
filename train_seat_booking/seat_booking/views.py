@@ -2,38 +2,43 @@
 
 from django.shortcuts import render
 from django.http import JsonResponse
-from .models import TrainCoach
+# from .models import TrainCoach
+from rest_framework.views import APIView
 
 def index(request):
-    coach = []  
-    coach = TrainCoach.objects.first()
-    available_seats = coach.available_seats.split(",")
-    booked_seats = coach.booked_seats.split(",")
-    return render(request, "seat_booking/templates/index.html", {"available_seats": available_seats, "booked_seats": booked_seats})
+    return render(request, "interface.html")
 
-def book_seats(request):
-    # if request.method == "POST":
-    # num_seats = int(request.POST.get("num_seats"))
-    num_seats = 3
-    coach = TrainCoach.objects.first()
-    available_seats = coach.available_seats.split(",")
-    booked_seats = coach.booked_seats.split(",")
-    booked = []
-    # for key,val in checkavailibility(available_seats)
-    for i in range(len(available_seats)):
-        if available_seats[i] not in booked_seats:
-            booked.append(available_seats[i])
-            if len(booked) == num_seats:
-                break
-    if len(booked) == num_seats:
-        coach.available_seats = ",".join([s for s in available_seats if s not in booked])
-        coach.booked_seats += "," + ",".join(booked)
-        # coach.save()
-        print(checkavailibility(coach.available_seats, num_seats))
-        return JsonResponse({"status": "success", "booked_seats": booked, "available_seats": coach.available_seats.split(",")})
-    return JsonResponse({"status": "failure", "booked_seats": [], "available_seats": coach.available_seats.split(",")})
+class Book_seats(APIView):
+    try:
+        def post(self, request):
+            print(int(dict(request.data)['seats'][0]))
+            if len(dict(request.data)['seats']) != 0 and int(dict(request.data)['seats'][0]) > 0:
+                num_seats = int(dict(request.data)['seats'][0])
+                # coach = TrainCoach.objects.first()
+                available_seats = request.data['available_seats'].split(",")
+                booked_seats = request.data['booked_seats'].split(",")
+                booked = []
+                # for key,val in checkavailibility(available_seats)
+                for i in range(len(available_seats)):
+                    if available_seats[i] not in booked_seats:
+                        booked.append(available_seats[i])
+                        if len(booked) == num_seats:
+                            break
+                if len(booked) == num_seats:
+                    available_seats = ", ".join([s for s in available_seats if s not in booked])
+                    # booked_seats = booked_seats + booked
+                    booked = ", ".join([s for s in booked])
+                    # coach.save()
+                    print(checkavailibility(request.data, num_seats))
+                    return JsonResponse({"status": "success", "booked_seats": booked, "available_seats": available_seats})
+            else:
+                return JsonResponse({"status": "failure"})
+    except Exception as e:
+        raise Exception(f'Error in REST/Book_seats {e}')
 
-def checkavailibility(available_seats, num_seats):
+def checkavailibility(coach, num_seats):
+    available_seats = coach['available_seats'].split(",")
+    # print(available_seats)
     available_seats = available_seats.split(',') if type(available_seats) == str else available_seats
     zeroth_row = int(available_seats[0].split('-')[0])
     available_count = 0
@@ -50,13 +55,15 @@ def checkavailibility(available_seats, num_seats):
     for rowid,seatcount in available_rec.items():
         counter = 0
         booked_seats = []
+        updtd_availableseats = []
         if seatcount >= num_seats:
             for seats in available_seats:
                 if(str(rowid) in seats and counter < num_seats):
-                    print(rowid)
                     booked_seats.append(seats)
+                    # available_seats.remove(seats)
                     counter += 1
+                else:
+                    updtd_availableseats.append(seats)
+            # print(updtd_availableseats)
             return booked_seats
-        else:
-            return False
     
